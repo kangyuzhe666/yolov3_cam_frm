@@ -1,59 +1,3 @@
-# yolov3_cam_frm
- yolov3基础上添加cam与frm模块参考CONTEXT AUGMENTATION AND FEATURE REFINEMENT
-NETWORK FOR TINY OBJECT DETECTION
-
-模型总体结构如下图
-
-![1](images/1.jpg)
-
-cam模块，融合方式采用（c）
-
-![1](images/2.jpg)
-
-根据论文数据c方式效果最好
-
-![1](images/3.jpg)
-
-cam关键代码实现
-
-```python
-class CAM(nn.Module):
-    def __init__(self, c1=1024, c2=1024, k=3, s=1):
-        super().__init__()
-        self.c1 = c1
-        self.c2 = c2
-        self.dilate_1 = nn.Sequential(
-            nn.Conv2d(self.c1, self.c1, kernel_size=k, stride=s, padding=1, dilation=1),
-            nn.Conv2d(self.c1, c2 // 3, kernel_size=1),
-        )
-        self.dilate_3 = nn.Sequential(
-            nn.Conv2d(self.c1, self.c1, kernel_size=k, stride=s, padding=3, dilation=3),
-            nn.Conv2d(self.c1, c2 // 3, kernel_size=1),
-        )
-        self.dilate_5 = nn.Sequential(
-            nn.Conv2d(self.c1, self.c1, kernel_size=k, stride=s, padding=5, dilation=5),
-            nn.Conv2d(self.c1, (c2 // 3 + c2 % 3), kernel_size=1),
-        )
-
-    def forward(self, x):
-        x1 = self.dilate_1(x)
-        x2 = self.dilate_3(x)
-        x3 = self.dilate_5(x)
-        return torch.cat((x1, x2, x3), 1)
-
-```
-
-frm模块如下图，按照论文插图实现一些尺寸对应不上论文描述也比较模糊，故在尺寸不一致时使用了1x1卷积，导致该模块参数量过大
-
-![1](images/4.jpg)
-
-frm模块集成才检测头里面这样对代码修改量最少
-
-![1](images/5.jpg)
-
-frm关键代码
-
-```python
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
@@ -127,14 +71,3 @@ if __name__ == '__main__':
 
     with SummaryWriter(comment='FRM') as w:
         w.add_graph(model, ([img1, img2, img3],))
-```
-
-最终在VOC2007 val的效果，在原有预训练模型的基础上训练300epoch。
-
-![1](images/6.jpg)
-
-总结：对论文的初步实现，相关超参数没有进行修改也没有进行大规模训练实验，仅供参考
-
-yolov3代码参考：https://github.com/ultralytics/yolov3
-
-训练方法参考：https://github.com/ultralytics/yolov3/wiki/Tips-for-Best-Training-Results
